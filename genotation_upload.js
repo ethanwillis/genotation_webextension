@@ -10,15 +10,16 @@ function handleClick(tab) {
 	chrome.notifications.create({
 		"type": "basic",
 		"iconUrl": chrome.extension.getURL("genotation_icon.png"),
-		"title
+		"title": "Genotating",
+		"message": "Fetching page content"
 	});
 	// Send a message to the content_script running on the page.
 	chrome.tabs.sendMessage(tab.id, {action: "GetPageContent"});
 }
 
 // Handle messages from our content script running on the webpage.
-chrome.runtime.onMessage.addListener(notify);
-function notify(message) {
+chrome.runtime.onMessage.addListener(handleMessage);
+function handleMessage(message) {
 	url = message.url;
 	page_content = message.page_content;
 	chrome.notifications.create({

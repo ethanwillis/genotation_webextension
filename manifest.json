@@ -3,18 +3,28 @@
 	"name": "Genotation",
 	"version": "1.0",
 	"description": "Genotation webextension to send the current webpage or document to Genotation from the browser.",
-	"browser_action": {
-		"icons": ["upload_icon.png", "genotation_icon.png"],
-		"default_icon": "upload_icon.png",
-		"default_title": "Send to Genotation"
+	"applications": {
+		"gecko": {
+			"id": "genotation@uthsc.edu"
+		}
 	},
 	"background": {
 		"scripts": ["genotation_upload.js"]
+	},
+	"browser_action": {
+		"icons": ["genotation_icon.png"],
+		"default_icon": "genotation_icon.png",
+		"default_title": "Send to Genotation"
 	},
 	"content_scripts": [
 		{
 			"matches": ["*://*/*"],
 			"js": ["content_script.js"]
 		}
+	],
+	"permissions": [
+		"tabs",
+		"bookmarks",
+		"notifications"
 	]
 }
