@@ -1,0 +1,20 @@
+{
+	"manifest_version": 2,
+	"name": "Genotation",
+	"version": "1.0",
+	"description": "Genotation webextension to send the current webpage or document to Genotation from the browser.",
+	"browser_action": {
+		"icons": ["upload_icon.png", "genotation_icon.png"],
+		"default_icon": "upload_icon.png",
+		"default_title": "Send to Genotation"
+	},
+	"background": {
+		"scripts": ["genotation_upload.js"]
+	},
+	"content_scripts": [
+		{
+			"matches": ["*://*/*"],
+			"js": ["content_script.js"]
+		}
+	]
+}
