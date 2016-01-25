@@ -6,15 +6,17 @@
 // When the plugin icon is clicked
 chrome.browserAction.onClicked.addListener(handleClick);
 function handleClick(tab) {
-	// Test message to show the structure of the tab webextensions object.
+	// Send a message to the content_script running on the page.
+	chrome.tabs.sendMessage(tab.id, {action: "get_page_content"});
+
+	// Send notification that we are fetching the page content.
 	chrome.notifications.create({
 		"type": "basic",
 		"iconUrl": chrome.extension.getURL("genotation_icon.png"),
 		"title": "Genotating",
 		"message": "Fetching page content"
 	});
-	// Send a message to the content_script running on the page.
-	chrome.tabs.sendMessage(tab.id, {action: "get_page_content"});
+
 }
 
 // Handle messages from our content script running on the webpage.
