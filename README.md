@@ -3,7 +3,7 @@ To install and test
 
 
 
-***Manual Build***
+***Manual Build***  
 1.) Download and install [Firefox Nightly](https://nightly.mozilla.org/)
 
 2.) Open Firefox Nightly, type about:config into the address bar and press enter.
@@ -16,7 +16,7 @@ To install and test
 
 6.) Browse to any webpage and click the Genotation button in the taskbar.
 
-***Build Script***
+***Build Script***  
 chmod +x build.sh and run it. This will create a .XPI in the parent directory that you can drag onto Firefox. You will still need to follow step 3 in the manual build steps to install unsigned extensons.
 
 Current State
