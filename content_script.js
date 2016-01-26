@@ -18,7 +18,7 @@ function send_message(message) {
 }
 
 // Base64 encodes an array buffer. 
-function base64_encode(data) {
+function base64_encode(buffer) {
 	console.log("Base64 encoding data");
 	var binary = '';
 	var bytes = new Uint8Array( buffer );
@@ -33,42 +33,43 @@ function base64_encode(data) {
 /**
  * The following three function handle_* take an xhr response, and send the URL content, content_type, and URL string to a background script so it can be sent off to a webservice. Each of these handle_* functions handles an xhr response for the varying content_types that Genotation supports. Currerntly the supported types are HTML files and PDF files.
  */
-function handle_pdf(xhr_request, content_type) {
-	url_string = xhr_request.responseURL;
+function get_pdf_content(url_string, content_type, CORS_error) {
+	if(CORS_error) {
+		console.log("Handling PDF file with CORS restriction");
+		// Get array buffer of PDF file from PDF.js(
+		try{ 
+			unsafeWindow.PDFViewerApplication.pdfDocument.getData().then(function(data) {
+				url_content = base64_encode(data);
+				message = build_message(url_string, url_content, content_type)
+	
+				// send message with bas64 encoded pdf and metadata to background script.
+				send_message(message);
+			});
+		} catch (err) {
+			console.log("Error converting PDF arraybuffer to Base64: " + err);
+		}
+	} else {
+		console.log("Handling PDF file with no CORS restriction");
+		url_content = xhr_request.response;
+		message = build_message(url_string, url_content, content_type);
+	}
+}
 
-	console.log("Coercing response to be an arrayBuffer");
-	// Coerce response to be an array buffer for base64 encoding.
-	xhr_request.responseType = "arrayBuffer";
+function get_html_content(url_string, content_type) {;
+	url_content = document.body;
+	message = build_message(url_string, url_content, content_type)
+	
 
-	// Encode response
-	url_content = base64_encode(xhr_request.response);
-
-	console.log("Building message with encoded data");	
-	message = build_message(url_string, url_content, content_type);
-
-	// send message to background script.
+	// send message with page data and metadata to background script.
 	send_message(message);
 }
 
-function handle_html(xhr_request, content_type) {
-	url_string = xhr_request.responseURL;
+function get_unsupported_content(url_string, content_type) {
+	url_content = "Unsupported Content";
+	content_type = "unsupported content type";
+	message = build_message(url_string, url_content, content_type)
 
-	url_content = xhr_request.response;
-
-	message = build_message(url_string, url_content, content_type);
-
-	// send message to background script.
-	send_message(message);
-}
-
-function handle_unsupported(xhr_request, content_type) {
-	url_string = xhr_request.responseURL;
-
-	url_content = xhr_request.response;
-
-	message = build_message(url_string, url_content, 'unsupported');
-
-	// send message to background script.
+	// send message with page data and metadata to background script.
 	send_message(message);
 }
 
@@ -80,28 +81,50 @@ function handle_unsupported(xhr_request, content_type) {
 function get_url_xhr(url_string) {
 	console.log("Building XHR request: " + url_string);
 	var xhr_request = new XMLHttpRequest();
+	// fetch non cached version of page. 
 	xhr_request.open("GET", (url_string+"?_="+new Date().getTime()), true);
 	
-	xhr_request.onload = function() {
-		console.log("XHR response received");
-		content_type_regex = new RegExp(/(^text\/html)|(^text\/htm)|(^application\/pdf)/);
-		content_type_header = xhr_request.getResponseHeader('content-type');
-		content_type = content_type_regex.exec(content_type_header);
-		console.log("Finished parsing XHR content-type: " + content_type);
-
-		// handle file content based on content-type returned by server.
-		if(content_type == null) {
-			handle_unsupported(xhr_request, content_type);
-		} else if(content_type[1] == "text/html") {
-			handle_html(xhr_request, content_type[1]);
-		} else if(content_type[2] == "text/htm") {
-			handle_html(xhr_request, content_type[2]);
-		} else if(content_type[3] == "application/pdf") {
-			handle_pdf(xhr_request, content_type[3]);
+	xhr_request.addEventListener("load", function() {
+		CORS_error = false;
+		// We are not blocked by CORS restrictions, so we are not reading a local file.
+		try { 
+			console.log("XHR response received");
+			content_type_regex = new RegExp(/(^text\/html)|(^text\/htm)|(^application\/pdf)/);
+			content_type_header = xhr_request.getResponseHeader('content-type');
+			content_type = content_type_regex.exec(content_type_header);
+			console.log("Finished parsing XHR content-type: " + content_type);
+		
+			url_content = null;
+			// handle file content based on content-type returned by server.
+			if(content_type == null) {
+				content_type = "unsupported";
+				url_content = get_unsupported_content(url_string, content_type);
+			} else if(content_type[1] == "text/html") {
+				url_content = get_html_content(url_string, content_type[1]);
+			} else if(content_type[2] == "text/htm") {
+				url_content = get_html_content(url_string, content_type[2]);
+			} else if(content_type[3] == "application/pdf") {
+				url_content = get_pdf_content(url_string, content_type[3], CORS_error);
+			} 
+		} catch (err) {
+			console.log("Error Getting Page Data");
 		}
-	}
+	});
 
-	console.log("Sending XHR request");
+	// Handle CORS errors
+	xhr_request.addEventListener("error",function() {
+		// Normally CORS errors should only happen if the content type is application/pdf 
+		// due to PDF.js messing up the file resource origin. So on a CORS error attempt
+		// to pull pdf data and send a message that way.
+		// If a user has PDF.js disabled in their browser than the regular readyState==4&&status==200
+		// condition will get the PDF data correctly.
+		CORS_error = true;
+		// TODO: If there are other applications that change the origin of the request for different
+		// content-types we need to handle those in the future.
+		get_pdf_content(url_string, 'application/pdf', CORS_error);
+	});
+
+	console.log("Sending XHR request to get content_type");
 	xhr_request.send();
 }
 
